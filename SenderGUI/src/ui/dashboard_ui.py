@@ -73,8 +73,8 @@ class DashboardUI:
         # --- Main layout with left and right panels ---
         main_panel_layout = QHBoxLayout()
 
-        self.left_panel = QVBoxLayout()
         self.right_panel = QVBoxLayout()
+        self.left_panel = QVBoxLayout()
 
         self.input_panel = WaypointInput()
         self.camera_feed = CameraFeed()
@@ -85,32 +85,33 @@ class DashboardUI:
         self.viewer_panel = WaypointViewer()
 
         # Start UDP image receiver for camera feed
-        self.image_receiver = UDPImageReceiver(ip='127.0.0.1', port=5007)
+        self.image_receiver = UDPImageReceiver(ip='192.168.68.115', port=5007)
         self.image_receiver.image_received.connect(self.camera_feed.update_image)
         self.image_receiver.start()
-        print("[Dashboard] Camera feed receiver started on 127.0.0.1:5007")
+        print("[Dashboard] Camera feed receiver started on 192.168.68.115:5007")
 
         # Left panel: Mission Viewer -> Waypoint Viewer -> Map
-        self.left_panel.addWidget(self.mission_control_viewer)
-        self.left_panel.addWidget(self.viewer_panel)
-        self.left_panel.addWidget(self.map_viewer)
-        self.left_panel.addStretch()
+        self.right_panel.addWidget(self.mission_control_viewer)
+        self.right_panel.addWidget(self.viewer_panel)
+        self.right_panel.addWidget(self.map_viewer)
+        self.right_panel.addStretch()
 
         # Right panel: Waypoint Input -> Camera Feed
-        self.right_panel.addWidget(self.input_panel)
-        self.right_panel.addWidget(self.camera_feed)
-        self.right_panel.addStretch()
+        self.left_panel.addWidget(self.input_panel)
+        self.left_panel.addWidget(self.camera_feed)
+        self.left_panel.addStretch()
 
         # Connections
         self.input_panel.submitted.connect(self.viewer_panel.add_waypoint)
         self.viewer_panel.mission_pushed.connect(self.mission_control_viewer.update_mission_viewer)
-        self.viewer_panel.mission_pushed.connect(lambda _: self.map_viewer.set_destination_to_first_waypoint())
+        # self.viewer_panel.mission_pushed.connect(lambda _: self.map_viewer.set_destination_to_first_waypoint())
+        self.viewer_panel.mission_pushed.connect(lambda _: self.map_viewer.set_destination_to_latest_waypoint())
         self.map_viewer.refresh_map.clicked.connect(self.viewer_panel.get_all_mission_data)
         self.viewer_panel.waypoint_data.connect(self.map_viewer.update_map)
 
         # Left panel gets more space (stretch factor 7), right panel less (stretch factor 3)
-        main_panel_layout.addLayout(self.left_panel, 7)
-        main_panel_layout.addLayout(self.right_panel, 3)
+        main_panel_layout.addLayout(self.left_panel, 3)
+        main_panel_layout.addLayout(self.right_panel, 7)
 
         self.main_layout.addLayout(main_panel_layout)
 

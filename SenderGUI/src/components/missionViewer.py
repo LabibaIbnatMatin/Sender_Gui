@@ -68,4 +68,4 @@ class MissionViewer(QWidget):
         print(self.data_to_deliver)
         print("UDP Data Sending ===")
 
-        send_udp_data(self.data_to_deliver, "127.0.0.1", 5006) # Orin's IP and port
+        send_udp_data(self.data_to_deliver, "192.168.68.115", 5006) # Orin's IP and port
