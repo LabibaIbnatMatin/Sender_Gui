@@ -2,7 +2,7 @@ import socket
 import json
 
 
-def send_udp_data(data_dict, ip="127.0.0.1", port=5006): #this is orin's ip and orin' port 
+def send_udp_data(data_dict, ip="192.168.68.115", port=5006): #this is orin's ip and orin' port 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     message = json.dumps(data_dict).encode('utf-8')
 
