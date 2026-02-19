@@ -1,0 +1,42 @@
+# --- Python Specific ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --- Virtual Environment ---
+# Always exclude your local venv
+.venv/
+venv/
+ENV/
+env/
+
+# --- PyCharm/JetBrains ---
+# Exclude PyCharm project settings (except perhaps for some shared ones)
+.idea/
+*.iml
+
+# --- Operating System ---
+.DS_Store
+Thumbs.db
+
+# --- Logs & Sockets ---
+*.log
+# If your UDP scripts generate temporary lock files or buffers
+*.lock
