@@ -58,7 +58,7 @@ class DashboardUI:
         header_inner_layout = QHBoxLayout()
 
         logo_label = QLabel()
-        pixmap = QPixmap("/home/labiba-ibnat-matin/Downloads/mongol_barota.png")
+        pixmap = QPixmap("/home/labiba-ibnat-matin/Downloads/logo.png")
         circle_size = 80
         circular = circular_pixmap(pixmap, circle_size)
         logo_label.setPixmap(circular)
