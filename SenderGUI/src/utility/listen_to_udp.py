@@ -7,7 +7,7 @@ class UDPListener(QThread):
     gps_data_received = pyqtSignal(float, float)
     data_received = pyqtSignal(dict)
 
-    def __init__(self, ip="127.0.0.1", port=5005):
+    def __init__(self, ip="0.0.0.0", port=5005):
         super().__init__()
         self.ip = ip
         self.port = port
@@ -59,7 +59,7 @@ class UDPListener(QThread):
                         print(f"UDP Error: {e}")
 
         except OSError as e:
-            print(f"✗ Failed to bind to port {self.port}: {e}")
+            print(f"Failed to bind to port {self.port}: {e}")
         finally:
             if self.sock:
                 self.sock.close()

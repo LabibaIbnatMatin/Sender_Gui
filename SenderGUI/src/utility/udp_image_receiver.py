@@ -5,7 +5,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 class UDPImageReceiver(QObject):
     image_received = pyqtSignal(bytes)
 
-    def __init__(self, ip='127.0.0.1', port=5007):   #here the ip and port will be orin's(receiverside) setting it to 0.0.0.0 means it will hear from all of the available interefaces
+    def __init__(self, ip='0.0.0.0', port=5007):   #here the ip and port will be orin's(receiverside) setting it to 0.0.0.0 means it will hear from all of the available interefaces
         super().__init__()                         #here orins' ip is 192.168.1.116 and port is 5006
         self.ip = ip
         self.port = port

@@ -19,7 +19,7 @@ class AppLogic(QMainWindow):
         self.ui.setup_ui(self.central_widget)
         
         # Start UDP listener to receive GPS from ReceiverGUI
-        self.udp_listener = UDPListener(ip="127.0.0.1", port=5005)
+        self.udp_listener = UDPListener(ip="0.0.0.0", port=5005)
         self.udp_listener.gps_data_received.connect(self.on_gps_received)
         self.udp_listener.start()
         print("UDP Listener started on port 5005")

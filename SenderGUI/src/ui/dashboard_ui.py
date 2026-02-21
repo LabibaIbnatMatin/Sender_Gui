@@ -117,10 +117,10 @@ class DashboardUI:
         self.viewer_panel = WaypointViewer()
 
         # Start UDP image receiver for camera feed
-        self.image_receiver = UDPImageReceiver(ip='192.168.68.115', port=5007)
+        self.image_receiver = UDPImageReceiver(ip='0.0.0.0', port=5007)
         self.image_receiver.image_received.connect(self.camera_feed.update_image)
         self.image_receiver.start()
-        print("[Dashboard] Camera feed receiver started on 192.168.68.115:5007")
+        print("[Dashboard] Camera feed receiver started on 192.168.116:5007")
 
         # Left panel composition: antenna controls -> waypoint input -> camera feed
         self.left_panel.addWidget(antenna_group)

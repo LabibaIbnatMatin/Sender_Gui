@@ -42,7 +42,60 @@ class AnimatedMarker(QObject):
         self.lon_anim.start()
 
 class MapViewer(QWidget):
+    pan_offset_x = 0
+    pan_offset_y = 0
+    _dragging = False
+    _last_mouse_pos = None
     waypoint_data = pyqtSignal(list)
+
+    def should_refresh_map_tile(self, lat, lon, threshold=100):
+        """Return True if GPS moved more than threshold meters from map center"""
+        # Use Haversine formula
+        R = 6371000
+        phi1 = radians(self.mapping_utility.lat)
+        phi2 = radians(lat)
+        dphi = radians(lat - self.mapping_utility.lat)
+        dlambda = radians(lon - self.mapping_utility.lon)
+        a = sin(dphi/2)**2 + cos(phi1)*cos(phi2)*sin(dlambda/2)**2
+        c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        distance = R * c
+        return distance > threshold
+
+    def refresh_base_map(self, lat, lon):
+        """Update the underlying map tile from the utility and recenter"""
+        self.mapping_utility.lat = lat
+        self.mapping_utility.lon = lon
+        self.mapping_utility.render_map()
+        self.map_path = self.mapping_utility.get_map_path()
+        self.base_pixmap = QPixmap(self.map_path)
+        self.map_label.setPixmap(self.base_pixmap)
+        self.pan_offset_x = 0
+        self.pan_offset_y = 0
+        print(f"[FollowMe] Map recentered to Lat={lat}, Lon={lon}")
+        self.redraw_markers()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._dragging = True
+            self._last_mouse_pos = event.position().toPoint()
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if self._dragging and self._last_mouse_pos is not None:
+            pos = event.position().toPoint()
+            dx = pos.x() - self._last_mouse_pos.x()
+            dy = pos.y() - self._last_mouse_pos.y()
+            self.pan_offset_x += dx
+            self.pan_offset_y += dy
+            self._last_mouse_pos = pos
+            self.redraw_markers()
+            event.accept()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._dragging = False
+            self._last_mouse_pos = None
+            event.accept()
 
     def __init__(self):
         super().__init__()
@@ -52,9 +105,9 @@ class MapViewer(QWidget):
         self.main_layout.addWidget(self.gps_status)
         self.map_label = QLabel("")
         self.map_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.current_lat = 22.80978657890875
-        self.current_lon = 90.41065979003906
-        self.current_zoom = 15
+        self.current_lat = 23.83778611
+        self.current_lon = 90.35948889
+        self.current_zoom = 19
         self.destination_lat = None
         self.destination_lon = None
         self.gps_connected = False
@@ -111,35 +164,36 @@ class MapViewer(QWidget):
         print(f"MapViewer: Updating {len(coords)} waypoint markers")
         self.waypoints = coords
         self.mapping_utility.add_markers(coords)
-        self.map_path = self.mapping_utility.get_map_path()
-        self.base_pixmap = QPixmap(self.map_path)
+        new_map_path = self.mapping_utility.get_map_path()
+        # Only reload pixmap if map tile or markers changed
+        if new_map_path != self.map_path:
+            self.map_path = new_map_path
+            self.base_pixmap = QPixmap(self.map_path)
         self.set_destination_to_latest_waypoint()  # Always set latest as destination
 
     def update_current_position(self, lat, lon):
         """Update GPS position from ReceiverGUI (smooth animated blue marker)"""
         print(f"MapViewer: GPS updated to Lat={lat}, Lon={lon}")
-        if not self.gps_connected:
-            self.gps_connected = True
-            print("GPS Connected!")
+        self.gps_connected = True
+        self.current_lat = lat
+        self.current_lon = lon
         self.gps_path.append((lat, lon))
         if len(self.gps_path) > self.max_path_points:
             self.gps_path.pop(0)
-        self.current_lat = lat
-        self.current_lon = lon
+        # Recenter map if GPS moved far from center
+        if self.should_refresh_map_tile(lat, lon):
+            self.refresh_base_map(lat, lon)
         self.animated_marker.animate_to(lat, lon, duration=800)
-        self.mapping_utility.update_position(lat, lon)
         self.update_gps_status()
-        # --- Check if destination is reached ---
+        self.gps_status.repaint()
         if self.destination_lat is not None and self.destination_lon is not None:
             if self.is_at_destination(lat, lon, self.destination_lat, self.destination_lon):
                 print("Destination reached! Clearing waypoints.")
                 self.waypoints.clear()
                 self.destination_lat = None
                 self.destination_lon = None
-                self.mapping_utility.add_markers([])  # Remove markers from map
-                self.map_path = self.mapping_utility.get_map_path()
-                self.base_pixmap = QPixmap(self.map_path)
-                self.redraw_markers()
+                self.mapping_utility.add_markers([])
+        self.redraw_markers()
 
     def is_at_destination(self, lat1, lon1, lat2, lon2, threshold=5):
         """Check if current position is within threshold (meters) of destination"""
@@ -175,6 +229,8 @@ class MapViewer(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         map_width = pixmap.width()
         map_height = pixmap.height()
+        offset_x = self.pan_offset_x
+        offset_y = self.pan_offset_y
         # Draw GPS path trail (blue line)
         if self.show_path and len(self.gps_path) > 1:
             pen = QPen(QColor(66, 133, 244, 180))
@@ -186,7 +242,7 @@ class MapViewer(QWidget):
             for lat, lon in self.gps_path:
                 x, y = self.lat_lon_to_pixel(lat, lon, map_width, map_height)
                 if x is not None and y is not None:
-                    points.append(QPointF(x, y))
+                    points.append(QPointF(x + offset_x, y + offset_y))
             for i in range(len(points) - 1):
                 painter.drawLine(points[i], points[i + 1])
         # Draw animated blue current position marker (Google Maps style)
@@ -208,27 +264,27 @@ class MapViewer(QWidget):
                 pen.setWidth(4)
                 pen.setStyle(Qt.PenStyle.DashLine)
                 painter.setPen(pen)
-                painter.drawLine(QPointF(curr_x, curr_y), QPointF(dest_x, dest_y))
+                painter.drawLine(QPointF(curr_x + offset_x, curr_y + offset_y), QPointF(dest_x + offset_x, dest_y + offset_y))
                 # Draw destination marker (red)
                 painter.setPen(QPen(QColor(255, 255, 255), 3))
                 painter.setBrush(QColor(234, 67, 53))  # Google red
-                painter.drawEllipse(QPointF(dest_x, dest_y), 12, 12)
+                painter.drawEllipse(QPointF(dest_x + offset_x, dest_y + offset_y), 12, 12)
                 painter.setPen(Qt.PenStyle.NoPen)
                 painter.setBrush(QColor(255, 255, 255))
-                painter.drawEllipse(QPointF(dest_x, dest_y), 4, 4)
+                painter.drawEllipse(QPointF(dest_x + offset_x, dest_y + offset_y), 4, 4)
         if current_x is not None and current_y is not None:
             # Outer glow (light blue halo)
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QColor(66, 133, 244, 60))  # Google blue with transparency
-            painter.drawEllipse(QPointF(current_x, current_y), 22, 22)
+            painter.drawEllipse(QPointF(current_x + offset_x, current_y + offset_y), 22, 22)
             # BLUE circle with white border
             painter.setPen(QPen(QColor(255, 255, 255), 3))
             painter.setBrush(QColor(66, 133, 244))  # Google Maps blue
-            painter.drawEllipse(QPointF(current_x, current_y), 12, 12)
+            painter.drawEllipse(QPointF(current_x + offset_x, current_y + offset_y), 12, 12)
             # White center dot
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QColor(255, 255, 255))
-            painter.drawEllipse(QPointF(current_x, current_y), 4, 4)
+            painter.drawEllipse(QPointF(current_x + offset_x, current_y + offset_y), 4, 4)
         painter.end()
         self.map_label.setPixmap(pixmap)
 
